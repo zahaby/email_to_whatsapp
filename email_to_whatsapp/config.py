@@ -51,7 +51,7 @@ class Config:
         if dotenv:
             _load_dotenv(Path(dotenv))
 
-        provider = os.environ.get("WHATSAPP_PROVIDER", "twilio").strip().lower()
+        provider = os.environ.get("WHATSAPP_PROVIDER", "callmebot").strip().lower()
         settings_keys = {
             "twilio": ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM"],
             "meta": ["META_ACCESS_TOKEN", "META_PHONE_NUMBER_ID"],
@@ -70,6 +70,12 @@ class Config:
         recipients = _list("WHATSAPP_RECIPIENTS")
         if not recipients:
             raise SystemExit("WHATSAPP_RECIPIENTS must list at least one number, e.g. +201001234567,+201112345678")
+        if provider == "callmebot":
+            digits = lambda n: "".join(c for c in n if c.isdigit())  # noqa: E731
+            keyed = {digits(pair.rpartition(":")[0]) for pair in settings["CALLMEBOT_API_KEYS"].split(",")}
+            missing = [r for r in recipients if digits(r) not in keyed]
+            if missing:
+                raise SystemExit(f"CALLMEBOT_API_KEYS has no key for: {', '.join(missing)}")
 
         return cls(
             imap_host=_require("IMAP_HOST"),

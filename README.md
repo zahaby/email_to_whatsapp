@@ -35,15 +35,24 @@ The mailbox is opened **read-only** and messages are fetched with `BODY.PEEK`, s
 
 Set `SENDER_FILTER` to forward only mail from specific senders or domains.
 
-## WhatsApp provider
+## WhatsApp setup (CallMeBot, default)
 
-WhatsApp has no free official API for personal accounts, so pick one of:
+CallMeBot is a free service for sending WhatsApp messages to your own phone. Each recipient (you and Riham) does this once:
 
-| `WHATSAPP_PROVIDER` | Best for | Notes |
-|---|---|---|
-| `twilio` | Fastest to get running | The free **sandbox** works right away: each recipient sends `join <code>` to the sandbox number once. Sandbox sessions expire after 72h of inactivity; for production, register your own WhatsApp sender in Twilio. |
-| `meta` | Production, cheapest at volume | WhatsApp Cloud API. Free-form text only reaches people who messaged your business number in the last 24h. To send any time, create and approve a template with one `{{1}}` body variable and set `META_TEMPLATE_NAME`. |
-| `callmebot` | Personal, zero cost | Each recipient registers once with CallMeBot and gets their own API key. Unofficial service with rate limits. |
+1. Go to <https://www.callmebot.com/blog/free-api-whatsapp-messages/> and save the CallMeBot WhatsApp number shown there in your contacts.
+2. Send it the WhatsApp message `I allow callmebot to send me messages`.
+3. You'll get a reply with your personal **API key**.
+
+Then put both numbers and keys in `.env`:
+
+```
+WHATSAPP_RECIPIENTS=+201000000001,+201000000002
+CALLMEBOT_API_KEYS=+201000000001:123456,+201000000002:654321
+```
+
+and check it with `python -m email_to_whatsapp --test "hello"`.
+
+CallMeBot is unofficial and meant for personal use: messages come from CallMeBot's number (not yours), it limits how often you can send, and there's no delivery guarantee. If you outgrow it, set `WHATSAPP_PROVIDER=twilio` or `meta` (see `.env.example`); Meta's WhatsApp Cloud API is the official route.
 
 ## Options
 
