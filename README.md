@@ -7,21 +7,21 @@ New mail in INBOX ──► email_to_whatsapp ──► WhatsApp ──► +2010
                                                      └──► +20111… (Riham)
 ```
 
-## Quick start
+## Quick start (Docker)
 
 ```bash
-pip install -r requirements.txt
-cp .env.example .env        # fill in mailbox, numbers, provider credentials
-python -m email_to_whatsapp --test "Hello from email_to_whatsapp"   # check WhatsApp delivery
-python -m email_to_whatsapp                                         # run forever
+cp .env.example .env          # fill in mailbox, both numbers, WAHA passwords
+docker compose up -d          # starts WAHA + the forwarder
 ```
 
-Or with Docker:
+Then link WhatsApp once (see below) and send a test:
 
 ```bash
-docker build -t email-to-whatsapp .
-docker run -d --restart unless-stopped --env-file .env -v e2w-data:/data email-to-whatsapp
+docker compose run --rm forwarder python -m email_to_whatsapp --test "hello"
+docker compose logs -f forwarder
 ```
+
+Without Docker for the forwarder: `pip install -r requirements.txt`, set `WAHA_URL=http://localhost:3000` in `.env`, and run `python -m email_to_whatsapp`.
 
 ## Mailbox setup
 
@@ -35,24 +35,20 @@ The mailbox is opened **read-only** and messages are fetched with `BODY.PEEK`, s
 
 Set `SENDER_FILTER` to forward only mail from specific senders or domains.
 
-## WhatsApp setup (CallMeBot, default)
+## WhatsApp setup (WAHA, default)
 
-CallMeBot is a free service for sending WhatsApp messages to your own phone. Each recipient (you and Riham) does this once:
+[WAHA](https://github.com/devlikeapro/waha) runs WhatsApp Web in a container and exposes an HTTP API. Emails are sent **from the WhatsApp account you link** to the numbers in `WHATSAPP_RECIPIENTS`.
 
-1. Go to <https://www.callmebot.com/blog/free-api-whatsapp-messages/> and save the CallMeBot WhatsApp number shown there in your contacts.
-2. Send it the WhatsApp message `I allow callmebot to send me messages`.
-3. You'll get a reply with your personal **API key**.
+1. **Use a spare number if you can** (a cheap second SIM with WhatsApp installed). Messages you send to yourself land silently in "Message yourself" with no notification, and WAHA is unofficial, so WhatsApp could ban a number it sees as automated. A spare number keeps your main account safe and makes alerts notify both you and Riham.
+2. Open <http://localhost:3000/dashboard> on the machine running Docker and log in with `WAHA_DASHBOARD_USERNAME` / `WAHA_DASHBOARD_PASSWORD`. When it asks for the API key, use `WAHA_API_KEY`.
+3. The `default` session shows a QR code. On the phone: WhatsApp → Settings → Linked devices → Link a device → scan it. The status changes to **WORKING**.
+4. Have you and Riham save the spare number as a contact (helps avoid spam filtering) and send it one message, such as "hi".
 
-Then put both numbers and keys in `.env`:
+The login is saved in `./waha-sessions`, so restarts don't need a new scan. If the phone is offline for about 14 days or the device is unlinked, scan again. While WhatsApp is unreachable, emails are held and retried on every poll, so nothing is lost.
 
-```
-WHATSAPP_RECIPIENTS=+201000000001,+201000000002
-CALLMEBOT_API_KEYS=+201000000001:123456,+201000000002:654321
-```
+### Other providers
 
-and check it with `python -m email_to_whatsapp --test "hello"`.
-
-CallMeBot is unofficial and meant for personal use: messages come from CallMeBot's number (not yours), it limits how often you can send, and there's no delivery guarantee. If you outgrow it, set `WHATSAPP_PROVIDER=twilio` or `meta` (see `.env.example`); Meta's WhatsApp Cloud API is the official route.
+Set `WHATSAPP_PROVIDER` to `twilio`, `meta` or `callmebot` and fill in the matching block in `.env.example`. Meta's WhatsApp Cloud API is the official, ban-free route but needs a business account and an approved template.
 
 ## Options
 

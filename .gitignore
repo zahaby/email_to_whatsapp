@@ -4,3 +4,4 @@ state.tmp
 __pycache__/
 *.pyc
 .venv/
+waha-sessions/

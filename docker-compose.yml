@@ -1,0 +1,29 @@
+# WAHA (WhatsApp Web bridge) + the email forwarder.
+# Values come from .env in this folder. Start with: docker compose up -d
+services:
+  waha:
+    image: devlikeapro/waha:latest   # free "Core" edition: one session named "default"
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"        # dashboard on this machine only
+    environment:
+      WAHA_API_KEY: ${WAHA_API_KEY}
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD}
+      WHATSAPP_START_SESSION: default
+      WHATSAPP_RESTART_ALL_SESSIONS: "True"
+    volumes:
+      - ./waha-sessions:/app/.sessions   # keeps the WhatsApp login across restarts
+
+  forwarder:
+    build: .
+    restart: unless-stopped
+    depends_on: [waha]
+    env_file: .env
+    environment:
+      WAHA_URL: http://waha:3000
+    volumes:
+      - e2w-data:/data
+
+volumes:
+  e2w-data: {}

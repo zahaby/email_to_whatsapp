@@ -42,12 +42,15 @@ def _status_value(conn: imaplib.IMAP4_SSL, folder: str, item: str) -> int:
     return int(match.group(1))
 
 
-def deliver(sender: Sender, recipients: list[str], text: str) -> None:
+def deliver(sender: Sender, recipients: list[str], text: str) -> int:
+    """Send text to every recipient; returns how many succeeded."""
+    delivered = 0
     for to in recipients:
         for attempt in range(1, SEND_ATTEMPTS + 1):
             try:
                 sender.send(to, text)
                 log.info("Sent to %s", to)
+                delivered += 1
                 break
             except Exception as exc:  # noqa: BLE001 - log and retry any delivery error
                 detail = getattr(getattr(exc, "response", None), "text", "") or ""
@@ -56,6 +59,7 @@ def deliver(sender: Sender, recipients: list[str], text: str) -> None:
                     time.sleep(2**attempt)
         else:
             log.error("Giving up on %s for this email", to)
+    return delivered
 
 
 def check_mailbox(cfg: Config, sender: Sender, state: State, process_existing: bool = False) -> None:
@@ -92,7 +96,9 @@ def check_mailbox(cfg: Config, sender: Sender, state: State, process_existing: b
                     log.info("UID %s from %s ignored by SENDER_FILTER", uid, email.sender_address)
                 else:
                     log.info("Forwarding UID %s: %s", uid, email.subject)
-                    deliver(sender, cfg.recipients, format_message(email, cfg.max_chars))
+                    if not deliver(sender, cfg.recipients, format_message(email, cfg.max_chars)):
+                        # Nobody got it (e.g. WhatsApp session down): keep it for the next poll.
+                        raise RuntimeError(f"Could not deliver UID {uid} to anyone; will retry")
             state.last_uid = uid
             state.save()
     finally:

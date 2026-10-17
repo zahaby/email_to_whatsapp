@@ -51,8 +51,9 @@ class Config:
         if dotenv:
             _load_dotenv(Path(dotenv))
 
-        provider = os.environ.get("WHATSAPP_PROVIDER", "callmebot").strip().lower()
+        provider = os.environ.get("WHATSAPP_PROVIDER", "waha").strip().lower()
         settings_keys = {
+            "waha": ["WAHA_API_KEY"],
             "twilio": ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM"],
             "meta": ["META_ACCESS_TOKEN", "META_PHONE_NUMBER_ID"],
             "callmebot": ["CALLMEBOT_API_KEYS"],
@@ -63,7 +64,7 @@ class Config:
             )
         settings = {k: _require(k) for k in settings_keys[provider]}
         # Optional provider settings
-        for k in ("META_TEMPLATE_NAME", "META_TEMPLATE_LANG", "META_API_VERSION"):
+        for k in ("WAHA_URL", "WAHA_SESSION", "META_TEMPLATE_NAME", "META_TEMPLATE_LANG", "META_API_VERSION"):
             if os.environ.get(k):
                 settings[k] = os.environ[k].strip()
 

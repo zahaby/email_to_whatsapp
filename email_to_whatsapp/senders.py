@@ -21,6 +21,33 @@ def _normalize(number: str) -> str:
     return "+" + digits
 
 
+class WahaSender:
+    """Self-hosted WAHA (WhatsApp HTTP API) linked to a WhatsApp account by QR code.
+
+    Messages are sent from the linked account. Unofficial: WhatsApp may ban numbers
+    it considers automated, so link a spare number rather than your main one.
+    """
+
+    def __init__(self, settings: dict[str, str]):
+        self.url = settings.get("WAHA_URL", "http://localhost:3000").rstrip("/") + "/api/sendText"
+        self.api_key = settings["WAHA_API_KEY"]
+        self.session = settings.get("WAHA_SESSION", "default")
+
+    def send(self, to: str, text: str) -> None:
+        resp = requests.post(
+            self.url,
+            headers={"X-Api-Key": self.api_key},
+            json={
+                "session": self.session,
+                "chatId": f"{_normalize(to).lstrip('+')}@c.us",
+                "text": text,
+                "linkPreview": False,
+            },
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+
+
 class TwilioSender:
     """Twilio WhatsApp API (works with the free Twilio sandbox for testing)."""
 
@@ -108,4 +135,4 @@ class CallMeBotSender:
 
 
 def build_sender(provider: str, settings: dict[str, str]) -> Sender:
-    return {"twilio": TwilioSender, "meta": MetaCloudSender, "callmebot": CallMeBotSender}[provider](settings)
+    return {"waha": WahaSender, "twilio": TwilioSender, "meta": MetaCloudSender, "callmebot": CallMeBotSender}[provider](settings)

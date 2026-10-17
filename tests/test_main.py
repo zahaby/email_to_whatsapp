@@ -1,3 +1,5 @@
+import pytest
+
 from email.message import EmailMessage
 
 from email_to_whatsapp import main as m
@@ -100,3 +102,23 @@ def test_failed_recipient_does_not_block_others(monkeypatch):
     s = Flaky()
     m.deliver(s, ["+201", "+202"], "hi")
     assert s.sent == [("+202", "hi")]
+
+
+def test_undelivered_email_is_retried_next_poll(tmp_path, monkeypatch):
+    FakeIMAP.mailbox = {1: _email(1)}
+    monkeypatch.setattr(m.imaplib, "IMAP4_SSL", FakeIMAP)
+    monkeypatch.setattr(m.time, "sleep", lambda s: None)
+    cfg = _cfg(tmp_path)
+    m.check_mailbox(cfg, RecordingSender(), m.State(cfg.state_file))  # init state
+
+    class Down(RecordingSender):
+        def send(self, to, text):
+            raise RuntimeError("session not WORKING")
+
+    FakeIMAP.mailbox[2] = _email(2)
+    with pytest.raises(RuntimeError):
+        m.check_mailbox(cfg, Down(), m.State(cfg.state_file))
+
+    up = RecordingSender()
+    m.check_mailbox(cfg, up, m.State(cfg.state_file))
+    assert len(up.sent) == 2 and "msg 2" in up.sent[0][1]
